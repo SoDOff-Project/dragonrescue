@@ -5,7 +5,7 @@ using dragonrescue.Util;
 using dragonrescue.Schema;
 
 namespace dragonrescue;
-class Tools {
+public class Tools {
     public static async System.Threading.Tasks.Task SelectDragon(LoginApi.Data loginData, int raisedPetID, int petTypeID) {
         (var client, var apiToken, var profile) = await LoginApi.DoVikingLogin(loginData);
         
@@ -35,6 +35,54 @@ class Tools {
         });
         bodyRaw = await client.PostAndGetReplayOrThrow(Config.URL_CONT_API + "/ContentWebService.asmx/SetKeyValuePair", formContent);
         Config.LogWriter(string.Format("Set {0} to {1}: {2}", keyName, petTypeID, bodyRaw));
+    }
+    
+    private static async System.Threading.Tasks.Task<bool> BoolRequest(HttpClient client, string url, FormUrlEncodedContent request) {
+        bool success = false;
+        var bodyRaw = await client.PostAndGetReplayOrThrow(Config.URL_CONT_API + url, request);
+        try {
+            success = XmlUtil.DeserializeXml<bool>(bodyRaw);
+        } catch {}
+        return success;
+    }
+    
+    public static async System.Threading.Tasks.Task RemoveDragon(LoginApi.Data loginData, string dragonId) {
+        Console.WriteLine($"Removing Dragon: {dragonId}");
+        
+        (var client, var apiToken, var profile) = await LoginApi.DoVikingLogin(loginData);
+        
+        var removeRequest = new FormUrlEncodedContent(new[] {
+            new KeyValuePair<string, string>("apiKey", Config.APIKEY),
+            new KeyValuePair<string, string>("apiToken", apiToken),
+            new KeyValuePair<string, string>("raisedPetID", dragonId),
+        });
+
+        // unselect if is selected
+        bool success = await BoolRequest(client, "/ContentWebService.asmx/SetRaisedPetInactive", removeRequest);
+        Console.WriteLine($"Dragon unselected: {success}");
+        
+        // convert to fish
+        var fishRequest = new FormUrlEncodedContent(new[] {
+            new KeyValuePair<string, string>("apiKey", Config.APIKEY),
+            new KeyValuePair<string, string>("apiToken", apiToken),
+            new KeyValuePair<string, string>("raisedPetData", 
+                $"<?xml version=\"1.0\" encoding=\"utf-8\"?> <RPD> <id>{dragonId}</id> <ptid>2</ptid> <is>false</is> <ir>false</ir> <gd>0</gd> <updt>0001-01-01T00:00:00</updt> </RPD>"
+            ),
+        });
+        success = await BoolRequest(client, "/ContentWebService.asmx/SetRaisedPet", fishRequest);
+        Console.WriteLine($"Dragon converted into Fish: {success}");
+        if (!success) {
+            Console.WriteLine("Removing Dragon: failed");
+            return;
+        }
+        
+        // remove
+        success = await BoolRequest(client, "/ContentWebService.asmx/SetRaisedPetInactive", removeRequest);
+        Console.WriteLine($"Minisaur killed: {success}");
+        if (!success) {
+            Console.WriteLine("Removing Dragon: Failed");
+            return;
+        }
     }
     
     public static async System.Threading.Tasks.Task ReplaceDragon(LoginApi.Data loginData, string path, string img1File = "-", string img2File = "-") {

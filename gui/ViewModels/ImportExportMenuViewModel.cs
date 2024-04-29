@@ -18,5 +18,9 @@ namespace dragonrescuegui.ViewModels {
         public void Import() {
             _mainWindowViewModel.ContentViewModel = new ExportImportViewModel(_mainWindowViewModel, Models.Mode.Import);
         }
+        
+        public void RemoveDragon() {
+            _mainWindowViewModel.ContentViewModel = new ExportImportViewModel(_mainWindowViewModel, Models.Mode.RemoveDragon);
+        }
     }
 }

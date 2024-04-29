@@ -30,6 +30,11 @@ Use import with caution – in case of bug can broke your current account / viki
 		* **Note:** due to the lack some data in original dragonrescue dumps, import farm (in some cases) can be limited only to main (default) farm
 	* inventory
 		* **Warning:** inventory contains many invisible items (for example affecting quests or causing dragons duplication); inventory import may broke your account
+* tools
+	* set dragon as selected/active (`selectDragon`)
+	* replace XML and images of current dragon (`replaceDragon`)
+	* remove dragon (`removeDragon`)
+
 
 ## Usage
 
@@ -67,6 +72,10 @@ src/bin/dragonrescue-import --userApiUrl="User API URL" --contentApiUrl="Content
 ```
 
 **See `./dragonrescue-import import --help` for more options and details.**
+
+#### tools
+
+**See `./dragonrescue-import tools --help` for more options and details.**
 
 
 #### arguments description

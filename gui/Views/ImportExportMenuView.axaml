@@ -10,6 +10,7 @@
 		<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
 			<Button Content="Export" Command="{Binding Export}"/>
 			<Button Content="Import" Command="{Binding Import}"/>
+			<Button Content="Remove Dragon" Command="{Binding RemoveDragon}"/>
 		</StackPanel>
 	</Grid>
 </UserControl>

@@ -6,6 +6,6 @@ using System.Threading.Tasks;
 
 namespace dragonrescuegui.Models {
     public enum Mode {
-        Export, Import
+        Export, Import, RemoveDragon
     }
 }

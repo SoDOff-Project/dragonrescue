@@ -258,6 +258,20 @@ class Program {
         );
         toolsCommand.AddCommand(selectDragonCommand);
         
+        var removeDragonCommand = new Command("removeDragon", "remove dragon");
+        var removeDragonArgument = new Argument<string>(
+            name: "dragonID",
+            description: "ID (not eid / uuid) of dragon to remove"
+        );
+        removeDragonCommand.Add(removeDragonArgument);
+        removeDragonCommand.SetHandler(
+            async (dragonID) => {
+                await Tools.RemoveDragon(loginData, dragonID);
+            },
+            removeDragonArgument
+        );
+        toolsCommand.AddCommand(removeDragonCommand);
+        
         var replaceDragonCommand = new Command("replaceDragon", "replace XML and images of current pet\n" +
             "WARNING: This may broke your account. Use at own risk!\n" +
             "WARNING: Your current dragon will be destroyed!\n"

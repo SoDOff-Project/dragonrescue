@@ -34,11 +34,14 @@ namespace dragonrescuegui.ViewModels {
         private string _path;
         private string _log;
         private string _modeText;
+        private string _oldVikingName;
+        private string _dragonId;
         private string _warningText;
         private string _selectText;
         private double _progressValue;
 
         private bool _isImportMode;
+        private bool _isRemoveDragonMode;
         private bool _isEnabled;
         private bool _isDragonsSelected;
         private bool _isInventorySelected;
@@ -65,7 +68,11 @@ namespace dragonrescuegui.ViewModels {
 
         public bool IsAvatarSelected {
             get => _isAvatarSelected;
-            set => UpdateUI(ref _isAvatarSelected, value);
+            set {
+                // FIXME: For some reason RaiseAndSetIfChanged inside UpdateUI doesn't work correctly when used here
+                this.RaiseAndSetIfChanged(ref _isAvatarSelected, value);
+                UpdateUI(ref _isAvatarSelected, value);
+            }
         }
 
         public bool IsFarmsSelected {
@@ -76,6 +83,11 @@ namespace dragonrescuegui.ViewModels {
         public bool IsImportMode {
             get => _isImportMode;
             set => this.RaiseAndSetIfChanged(ref _isImportMode, value);
+        }
+
+        public bool IsRemoveDragonMode {
+            get => _isRemoveDragonMode;
+            set => this.RaiseAndSetIfChanged(ref _isRemoveDragonMode, value);
         }
 
         public string UserApiUrl {
@@ -100,12 +112,26 @@ namespace dragonrescuegui.ViewModels {
 
         public string VikingName {
             get => _vikingName;
-            set => UpdateUI(ref _vikingName, value);
+            set {
+                if (string.IsNullOrWhiteSpace(OldVikingName) || OldVikingName == _vikingName)
+                    OldVikingName = value;
+                UpdateUI(ref _vikingName, value);
+            }
         }
 
         public string ModeText {
             get => _modeText;
             set => this.RaiseAndSetIfChanged(ref _modeText, value);
+        }
+
+        public string OldVikingName {
+            get => _oldVikingName;
+            set => this.RaiseAndSetIfChanged(ref _oldVikingName, value);
+        }
+
+        public string DragonId {
+            get => _dragonId;
+            set => UpdateUI(ref _dragonId, value);
         }
 
         public string WarningText {
@@ -133,18 +159,9 @@ namespace dragonrescuegui.ViewModels {
                 return Uri.UnescapeDataString(_path);
             }
             set {
-                // FIXME: For some reason UpdateUI doesn't update the button status when used here
+                // FIXME: For some reason RaiseAndSetIfChanged inside UpdateUI doesn't work correctly when used here
                 this.RaiseAndSetIfChanged(ref _path, value);
-                IsEnabled = !string.IsNullOrWhiteSpace(UserApiUrl) &&
-                     !string.IsNullOrWhiteSpace(ContentApiUrl) &&
-                     !string.IsNullOrWhiteSpace(Username) &&
-                     !string.IsNullOrWhiteSpace(Password) &&
-                     !string.IsNullOrWhiteSpace(Path) &&
-                     !string.IsNullOrWhiteSpace(VikingName) &&
-                            (!IsImportMode || IsAvatarSelected || IsDragonsSelected
-                            || IsFarmsSelected || IsHideoutSelected || IsInventorySelected);
-                if (IsImportMode)
-                    TextWarningUpdate();
+                UpdateUI(ref _path, value);
             }
         }
 
@@ -162,10 +179,23 @@ namespace dragonrescuegui.ViewModels {
         public ExportImportViewModel(MainWindowViewModel mainWindow, Mode mode) {
             mainWindow.Width = 400;
             this.mode = mode;
-            mainWindow.Height = mode == Mode.Export ? 565 : 655;
-            ModeText = mode == Mode.Export ? "Export" : "Import";
+            switch (mode) {
+                case Mode.Export:
+                    ModeText = "Export";
+                    mainWindow.Height = 605;
+                    break;
+                case Mode.Import:
+                    ModeText = "Import";
+                    mainWindow.Height = 735;
+                    break;
+                case Mode.RemoveDragon:
+                    ModeText = "Remove Dragon";
+                    mainWindow.Height = 605;
+                    break;
+            }
             SelectText = mode == Mode.Export ? "Select folder:" : "Select XML:";
             IsImportMode = mode == Mode.Import;
+            IsRemoveDragonMode = mode == Mode.RemoveDragon;
         }
 
         public async Task ExecuteButtonCommand() {
@@ -188,6 +218,8 @@ namespace dragonrescuegui.ViewModels {
                     await Exporters.Export(data, Path);
                 else if (mode == Mode.Import)
                     await Import(data);
+                else if (mode == Mode.RemoveDragon)
+                    await Tools.RemoveDragon(data, DragonId);
             } catch (Exception ex) {
                 Console.WriteLine(ex.ToString());
             }
@@ -196,7 +228,7 @@ namespace dragonrescuegui.ViewModels {
 
         private async Task Import(LoginApi.Data data) {
             if (IsAvatarSelected)
-                await Importers.ImportAvatar(data, Path, data.viking, false);
+                await Importers.ImportAvatar(data, Path, OldVikingName, true);
             else if (IsDragonsSelected)
                 await Importers.ImportDragons(data, Path);
             else if (IsInventorySelected)
@@ -224,14 +256,25 @@ namespace dragonrescuegui.ViewModels {
 
         private TRet UpdateUI<TRet>(ref TRet backingField, TRet val) {
             var ret = this.RaiseAndSetIfChanged(ref backingField, val);
-            IsEnabled = !string.IsNullOrWhiteSpace(UserApiUrl) &&
-                                 !string.IsNullOrWhiteSpace(ContentApiUrl) &&
-                                 !string.IsNullOrWhiteSpace(Username) &&
-                                 !string.IsNullOrWhiteSpace(Password) &&
-                                 !string.IsNullOrWhiteSpace(Path) &&
-                                 !string.IsNullOrWhiteSpace(VikingName) &&
-                                 (!IsImportMode || IsAvatarSelected || IsDragonsSelected
-                                 || IsFarmsSelected || IsHideoutSelected || IsInventorySelected);
+            bool baseInfo = !string.IsNullOrWhiteSpace(UserApiUrl) &&
+                    !string.IsNullOrWhiteSpace(ContentApiUrl) &&
+                    !string.IsNullOrWhiteSpace(Username) &&
+                    !string.IsNullOrWhiteSpace(Password) &&
+                    !string.IsNullOrWhiteSpace(VikingName);
+            switch (mode) {
+                case Mode.Export:
+                    IsEnabled = baseInfo && !string.IsNullOrWhiteSpace(Path);
+                    break;
+                case Mode.Import:
+                    IsEnabled = baseInfo && !string.IsNullOrWhiteSpace(Path) &&
+                        (IsAvatarSelected || IsDragonsSelected
+                        || IsFarmsSelected || IsHideoutSelected || IsInventorySelected);
+                    break;
+                case Mode.RemoveDragon:
+                    IsEnabled = baseInfo && !string.IsNullOrWhiteSpace(DragonId);
+                    break;
+            }
+
             if (IsImportMode)
                 TextWarningUpdate();
             return ret;
@@ -251,8 +294,6 @@ namespace dragonrescuegui.ViewModels {
                 WarningText = "WARNING: Selected file doesn't end with MyRoomINT.xml";
             else if (IsFarmsSelected && !Path.ToLower().EndsWith("getuserroomlist.xml"))
                 WarningText = "WARNING: Selected file doesn't end with GetUserRoomList.xml";
-
-
         }
 
         private void OnScrollRequested() {
