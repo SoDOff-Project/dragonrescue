@@ -154,6 +154,9 @@ public class Importers {
             if (skipDragonTickets && userItem.Item.Category?.FirstOrDefault(e => e.CategoryId == 454) != null)
                 continue;
             
+            if (userItem.ItemID == 19197) // TODO temporary solution until mission support is added
+                continue;
+            
             if (userItem.Quantity < 1)
                 continue;
             
